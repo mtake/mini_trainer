@@ -1,73 +1,179 @@
+<div align="center">
+
+
 # Mini Trainer
 
-MiniTrainer is a small form factor and extremely efficient training library for models up to 70B parameters on a single 8xA100/H100 node, although it supports multinode training if your infrastructure has ROCE/Infiniband.
 
-### Features:
-- [Liger Kernels](https://github.com/linkedin/Liger-Kernel/tree/908b89c4dc9bb872351887b382a1e09ca25fbe85) to minimize memory footprint by chunking the loss computation.
-- **Automatic minibatching* based on the effective batch size: forget about tuning your gradient accumulation, just specify `max-tokens-per-gpu` and `batch-size` and the library will automatically divides your batches in balanced minibatches across your GPUs while never surpassing the specified number of tokens per GPU.
-- **FullyShardedDataParallel** via accelerate for efficient sharding across multi-GPU settings.
-- **Padding-free** -- it currently only works on GPUs that support flash attention and uses the padding-free feature of the transformer library to avoid extra computation on padding tokens.
-- **Infinite Sampling** -- forget about setting the number of epochs, just start the training and it would automatically sample an infinite stream of batches from your data.
-- **pretrain and supervised** fine tuninng tokenization schemes
-- **`jsonl` logging**, your metrics will be logged in the output directory as a jsonl that can easily be processed for plotting, wandb or whatever you like for experiment tracking.
+[![PR Tests](https://github.com/Red-Hat-AI-Innovation-Team/mini_trainer/actions/workflows/pr-tests.yml/badge.svg)](https://github.com/Red-Hat-AI-Innovation-Team/mini_trainer/actions/workflows/pr-tests.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-yellow.svg)](https://opensource.org/licenses/Apache-2.0)
+[![codecov](https://codecov.io/gh/Red-Hat-AI-Innovation-Team/mini_trainer/graph/badge.svg?token=FHCFYB1HJZ)](https://codecov.io/gh/Red-Hat-AI-Innovation-Team/mini_trainer)
 
-# Installation
+### A lightweight, high-performance training library for efficient fine-tuning of large language models up to 70B parameters.
 
-```shell
-conda create -n minitrain python=3.12 -y; conda activate minitrain
-pip install torch
-pip install -r requirements.txt
+<img src="https://ai-innovation.team/images/toolkit%20logos/Black%20and%20White%20Labs/lab-mini-trainer.png" alt="Mini Trainer Logo" height="150"/>
+
+**Built for speed, simplicity, and scalability** 🚀
+
+</div>
+
+---
+
+## ✨ Features
+
+- 🔥 **[Liger Kernels](https://github.com/linkedin/Liger-Kernel)** - Minimized memory footprint through chunked loss computation
+- ⚡ **Smart Batch Packing** - Automatic minibatching with numba-optimized LPT algorithm for optimal GPU load balancing
+- 🎯 **FSDP2 Support** - Native PyTorch distributed training with FullyShardedDataParallel
+- 🚫 **Padding-Free** - Leverages Flash Attention for efficient computation without padding overhead
+- ♾️ **Infinite Sampling** - Continuous data streaming without manual epoch configuration
+- 🔬 **Orthogonal Subspace Fine-Tuning (OSFT)** - Advanced continual learning technique for parameter-efficient training
+- 📊 **Flexible Logging** - JSONL metrics logging with optional Weights & Biases integration
+
+---
+
+## 🔬 Orthogonal Subspace Fine-Tuning (OSFT)
+
+[![arXiv](https://img.shields.io/badge/arXiv-2504.07097-b31b1b.svg)](https://arxiv.org/abs/2504.07097)
+
+Mini Trainer implements **Orthogonal Subspace Fine-Tuning (OSFT)**, a breakthrough continual learning technique that enables models to learn new tasks **without catastrophic forgetting**. OSFT uses adaptive SVD-based decomposition to intelligently update models in unused parameter subspaces while preserving crucial prior knowledge.
+
+### 🎥 Learn More
+
+<div align="center">
+
+[![Orthogonal Subspace Learning](https://img.youtube.com/vi/iVp8aWkF_5M/0.jpg)](https://www.youtube.com/watch?v=iVp8aWkF_5M)
+
+**Watch our technical deep-dive on Orthogonal Subspace Learning**
+
+</div>
+
+### 📚 Resources
+
+- 📝 **Blog Post**: [Sculpting Subspaces: How We Solved Continual Learning in LLMs](https://ai-innovation.team/blog/orthogonal-subspace-learning)
+- 📄 **Research Paper**: [arXiv:2504.07097](https://arxiv.org/abs/2504.07097)
+
+### 🚀 Using OSFT
+
+Enable OSFT in your training runs with the `--osft` flag:
+
+```bash
+torchrun --nnodes=1 --nproc-per-node=8 -m mini_trainer.train \
+    --model-name-or-path meta-llama/Llama-3.1-8B-Instruct \
+    --data-path ./data.jsonl \
+    --output-dir ./checkpoints \
+    --osft \
+    --osft-unfreeze-rank-ratio 0.25  # train the 25% least important parameters
 ```
 
-# Data Tokenization
+The `--osft-unfreeze-rank-ratio` parameter controls how much of the model to update (0.0 = everything frozen, 1.0 = full training).
 
-You first need to tokenize your data and get the input tokens and the output label tokens. The resulting label tokens will contain a mask token (`-100`) for the `user` and `system` roles, and unmask the tokens for the `assistant` role content. If you wish to pretrain (i.e. train on all tokens in the input) include the data in a single `pretrain` role message.
+---
 
-```shell
-TOKENIZERS_PARALLELISM=False \
-python process_data.py \
---input-file "data_with_messages_format.jsonl" \
---output-file "tokenized_data.jsonl" \
---model-name-or-path "Qwen/Qwen2.5-1.5B-instruct" \
---max-sample-num-tokens 32768
+## 📦 Installation
+
+### From PyPI
+
+```bash
+# Install base package
+pip install rhai-innovation-mini-trainer
+
+# Install CUDA dependencies (required for GPU training)
+pip install rhai-innovation-mini-trainer[cuda] --no-build-isolation
 ```
 
-### Data Assumptions
-The data must be a `json list` format (each line a json), and each sample should have a `messages` field formatted like this:
+### From Source (Editable)
 
+```bash
+# Clone the repository
+git clone https://github.com/Red-Hat-AI-Innovation-Team/mini_trainer.git
+cd mini_trainer
+
+# Install in editable mode
+pip install -e .
+
+# Install CUDA dependencies
+pip install -e .[cuda] --no-build-isolation
+```
+
+---
+
+## 🎯 Usage
+
+Training is orchestrated through the `api_train.py` module, which provides a programmatic interface for launching training jobs. You can run training using `torchrun` for distributed setups:
+
+```bash
+torchrun --nnodes=1 --nproc-per-node=8 -m mini_trainer.train \
+    --output-dir ./checkpoints \
+    --data-path ./data.jsonl \
+    --model-name-or-path meta-llama/Llama-3.1-8B-Instruct \
+    --batch-size 128 \
+    --max-tokens-per-gpu 128000 \
+    --learning-rate 5e-6 \
+    --use-liger-kernels
+```
+
+### Key Parameters
+
+- `--model-name-or-path` - HuggingFace model identifier or local path
+- `--data-path` - Path to tokenized training data (JSONL format)
+- `--batch-size` - Target batch size for training
+- `--max-tokens-per-gpu` - Maximum tokens per GPU (auto-balances minibatches)
+- `--output-dir` - Directory for checkpoints and logs
+- `--use-liger-kernels` - Enable memory-efficient Liger kernels
+- `--osft` - Enable Orthogonal Subspace Fine-Tuning mode
+- `--osft-unfreeze-rank-ratio` - Ratio of model parameters to train with OSFT (0.0-1.0)
+
+For the complete list of arguments and advanced configuration options, see [`src/mini_trainer/api_train.py`](src/mini_trainer/api_train.py).
+
+---
+
+## 📊 Data Format
+
+Mini Trainer expects pre-tokenized data in **JSONL format** with the following structure:
 
 ```json
-{"messages": [{"role": "user","content": "<input 1>"},{"role": "assistant","content": "<output 1>"}]}
-{"messages": [{"role": "user","content": "<input 2>"},{"role": "assistant","content": "<output 2>"}]}
-{"messages": [{"role": "pretrain","content": "<pretrain data>"}]} #this sample will have completely unmasked tokens in the labels.
+{"input_ids": [1, 2, 3, ...], "labels": [1, 2, 3, ...], "len": 128}
+{"input_ids": [4, 5, 6, ...], "labels": [-100, -100, 6, ...], "len": 256}
 ```
 
-the data processing script will populate `input_ids`, `labels` and the sample length in the `len` keys. To do so the data processor uses the chat template included in the tokenizer, make sure the tokenizer has a proper chat template set up.
+Each line should contain:
+- `input_ids` - Tokenized input sequence
+- `labels` - Target labels (use `-100` for tokens to ignore in loss computation)
+- `len` - Sequence length (optional, computed automatically if missing)
 
-NOTE: check the printed examples at the end and make sure the samples look properly formatted and that the masked part of the labels correspods to anything that the model would not learn to generate (although it would still condition the model -- the $x$ in $p(y|x)$ ).
+### 🔄 Data Processing
 
-## Pretraining
-if you want to pretrain on some samples, such samples should have a messages format with a single element with the role `pretrain` and the data in the `content` key. This would use void using the chat template and the complete string in the `content` key would be unmasked.
+**Mini Trainer does not include data processing utilities.** For tokenization and data preparation, please use the **[instructlab-training](https://github.com/instructlab/training)** APIs, which provide robust data processing pipelines compatible with Mini Trainer's input format.
 
-## launch training
+---
 
-all training parameters can be found in [train.py](./train.py). Make sure to use the tokenized data created above as the input here.
+## 🐛 Bug Reports & Issues
 
-```shell
-torchrun --nnodes=1 --nproc-per-node=8 train.py \
-        --output-dir ./experiment_checkpoints_loggin_etc/ \
-        --data-path ./tokenized_data.jsonl \
-        --model-name-or-path Qwen/Qwen2.5-1.5B-instruct \
-        --min-samples-per-checkpoint 10000 \
-        --num-warmup-steps 20 \
-        --max-tokens-per-gpu 60000 \
-        --batch-size 128 \
-        --use-liger-kernels \
-        --seed 893 \
-        --fsdp-sharding-strategy FULL_SHARD \
-        --learning-rate 6e-6
-```
+Found a bug or have a feature request? We'd love to hear from you! Please [open an issue](https://github.com/Red-Hat-AI-Innovation-Team/mini_trainer/issues) on GitHub with:
 
-the parameters used for the run will be saved in `<output_dir>/training_params.json` and the metrics will be saved to `<output_dir>/training_metrics_0.jsonl`.
+- A clear description of the problem
+- Steps to reproduce
+- Expected vs. actual behavior
+- Environment details (Python version, GPU type, etc.)
 
-NOTE: keep an eye on `nvidia-smi` while training and raise the `max-tokens-per-gpu` until you're close (but not quite to avoid cuda memory re allocations) to the max memory in your GPUs.
+---
+
+## 📝 License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE.md) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+Built with ❤️ by the [Red Hat AI Innovation Team](https://ai-innovation.team/). 
+
+Mini Trainer is part of a broader ecosystem of LLM tools developed by the AI Innovation Team. Check out our other projects:
+- [training_hub](https://github.com/Red-Hat-AI-Innovation-Team/training_hub) - Post-training algorithms for LLMs
+- [its_hub](https://github.com/Red-Hat-AI-Innovation-Team/its_hub) - Inference-time scaling for LLMs
+- [sdg_hub](https://github.com/Red-Hat-AI-Innovation-Team/sdg_hub) - Synthetic data generation pipelines
+- [reward_hub](https://github.com/Red-Hat-AI-Innovation-Team/reward_hub) - State-of-the-art reward models
+
+Visit [ai-innovation.team](https://ai-innovation.team/) to explore all our open-source tools and research.
+
+Special thanks to the open-source community for contributions and feedback!
